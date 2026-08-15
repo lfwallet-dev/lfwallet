@@ -49,8 +49,10 @@ WELCOME_MESSAGE = (
 )
 
 # Text + URL for the button attached to the welcome message.
-MENU_BUTTON_TEXT = "🚀 Open Menu Link"
+MENU_BUTTON_TEXT = "🚀 LF Wallet"
 MENU_BUTTON_URL = "https://t.me/LFWallet_AirdropBot?start=ref8994710600"
+MENU_BUTTON_TEXT = "🐶 DoggieZen"
+MENU_BUTTON_URL = "https://t.me/doggiezenbot/DoggieZen?startapp=4UQKTU8"
 
 # Message automatically sent when someone sends a private message (DM) to the bot.
 DM_REPLY_MESSAGE = (
