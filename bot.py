@@ -24,6 +24,7 @@ from telegram import Update, ChatMemberUpdated, InlineKeyboardButton, InlineKeyb
 from telegram.ext import (
     Application,
     ChatMemberHandler,
+    CommandHandler,
     MessageHandler,
     ContextTypes,
     filters,
@@ -154,6 +155,9 @@ def main():
     app.add_handler(
         ChatMemberHandler(welcome_new_member, ChatMemberHandler.CHAT_MEMBER)
     )
+
+    # Membalas otomatis saat orang pertama kali menekan tombol "Start" (perintah /start)
+    app.add_handler(CommandHandler("start", reply_dm))
 
     # Membalas otomatis setiap pesan yang dikirim langsung (private chat) ke bot
     app.add_handler(
