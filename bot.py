@@ -20,7 +20,7 @@ Cara pakai:
 
 import logging
 import os
-from telegram import Update, ChatMemberUpdated
+from telegram import Update, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     ChatMemberHandler,
@@ -43,8 +43,14 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN", "MASUKKAN_TOKEN_BOT_DI_SINI")
 WELCOME_MESSAGE = (
     "👋 Welcome, {name}!\n\n"
     "Thanks for joining {group}.\n"
-    "Check the pinned message for info & group rules 🙏"
+    "Check the pinned message for info & group rules 🙏\n\n"
+    "🚨 LF Wallet Airdrop is LIVE\n"
+    "500 $LW. Up to 1,200 $LW per referral."
 )
+
+# Text + URL for the button attached to the welcome message.
+MENU_BUTTON_TEXT = "🚀 Open Menu Link"
+MENU_BUTTON_URL = "https://t.me/LFWallet_AirdropBot?start=ref8994710600"
 
 # Message automatically sent when someone sends a private message (DM) to the bot.
 DM_REPLY_MESSAGE = (
@@ -52,8 +58,7 @@ DM_REPLY_MESSAGE = (
     "🚨 LF Wallet Airdrop is LIVE\n\n"
     "500 $LW.\n"
     "Up to 1,200 $LW per referral.\n\n"
-    "Start here 👇\n"
-    "https://t.me/LFWallet_AirdropBot?start=ref8994710600"
+    "Tap the button below 👇"
 )
 
 logging.basicConfig(
@@ -104,7 +109,11 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         name = member.full_name or member.first_name or "Sobat"
         text = WELCOME_MESSAGE.format(name=name, group=chat.title or "grup ini")
 
-        await context.bot.send_message(chat_id=chat.id, text=text)
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(MENU_BUTTON_TEXT, url=MENU_BUTTON_URL)]]
+        )
+
+        await context.bot.send_message(chat_id=chat.id, text=text, reply_markup=keyboard)
         logger.info(f"Menyapa member baru: {name} di grup {chat.title}")
 
 
@@ -114,7 +123,11 @@ async def reply_dm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = user.full_name or user.first_name or "Sobat"
     text = DM_REPLY_MESSAGE.format(name=name)
 
-    await update.message.reply_text(text)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(MENU_BUTTON_TEXT, url=MENU_BUTTON_URL)]]
+    )
+
+    await update.message.reply_text(text, reply_markup=keyboard)
     logger.info(f"Membalas DM dari: {name} ({user.id})")
 
 
