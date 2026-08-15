@@ -37,18 +37,18 @@ from telegram.ext import (
 # export BOT_TOKEN="123456:ABC-DEF..."
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "MASUKKAN_TOKEN_BOT_DI_SINI")
 
-# Ubah pesan sambutan sesuai keinginanmu.
-# {name} akan otomatis diganti dengan nama member baru.
-# {group} akan otomatis diganti dengan nama grup.
+# Customize the welcome message here.
+# {name} is automatically replaced with the new member's name.
+# {group} is automatically replaced with the group's name.
 WELCOME_MESSAGE = (
-    "👋 Selamat datang, {name}!\n\n"
-    "Terima kasih sudah bergabung di {group}.\n"
-    "Baca pinned message untuk info & aturan grup ya 🙏"
+    "👋 Welcome, {name}!\n\n"
+    "Thanks for joining {group}.\n"
+    "Check the pinned message for info & group rules 🙏"
 )
 
-# Pesan yang otomatis dibalas kalau ada orang chat pribadi (DM) ke bot.
+# Message automatically sent when someone sends a private message (DM) to the bot.
 DM_REPLY_MESSAGE = (
-    "👋 Halo {name}!\n\n"
+    "👋 Hi {name}!\n\n"
     "🚨 LF Wallet Airdrop is LIVE\n\n"
     "500 $LW.\n"
     "Up to 1,200 $LW per referral.\n\n"
