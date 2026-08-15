@@ -1,9 +1,11 @@
 """
-Bot Telegram - Auto Welcome & Auto Reply DM
+Bot Telegram - Auto Welcome, Auto Reply DM & Force-Join Gate
 ====================================
 Bot ini akan otomatis:
 1. Menyapa setiap anggota baru yang bergabung ke grup Telegram kamu.
-2. Membalas dengan link promo setiap orang yang chat pribadi (DM) ke bot.
+2. Membalas dengan link promo setiap orang yang chat pribadi (DM) ke bot —
+   TAPI mengecek dulu apakah orang tersebut sudah join semua grup/channel
+   yang diwajibkan (lihat REQUIRED_CHANNELS di bawah).
 
 Library yang dipakai: python-telegram-bot (versi 20+)
 Install dulu dengan:
@@ -15,14 +17,20 @@ Cara pakai:
 3. Tambahkan bot ke grup kamu, jadikan admin (minimal punya izin baca pesan).
 4. Matikan privacy mode bot lewat @BotFather -> /setprivacy -> Disable,
    supaya bot bisa mendeteksi event anggota baru masuk.
-5. Jalankan: python bot.py
+5. PENTING untuk fitur force-join: tambahkan bot sebagai ADMIN di SETIAP
+   grup/channel yang ada di REQUIRED_CHANNELS. Kalau bot bukan admin di
+   sana, Telegram akan menolak permintaan cek keanggotaan, dan bot akan
+   selalu menganggap user belum join channel tersebut.
+6. Jalankan: python bot.py
 """
 
 import logging
 import os
 from telegram import Update, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
     MessageHandler,
@@ -63,6 +71,22 @@ DM_REPLY_MESSAGE = (
     "500 $LW.\n"
     "Up to 1,200 $LW per referral.\n\n"
     "Tap the button below 👇"
+)
+
+# Grup/channel yang WAJIB di-join dulu sebelum bot membalas dengan link menu.
+# "username" harus tanpa @ dan tanpa https://t.me/ (dipakai untuk cek keanggotaan).
+# PENTING: bot harus dijadikan ADMIN di setiap grup/channel ini, kalau tidak
+# Telegram tidak akan mengizinkan bot mengecek status keanggotaan.
+REQUIRED_CHANNELS = [
+    {"name": "LF Wallets", "username": "LFWallets"},
+    {"name": "LF Wallet Airdrop", "username": "LFWalletAirdrop"},
+    {"name": "LF Wallet Airdrop 2", "username": "LF_WalletAirdrop"},
+]
+
+# Pesan yang dikirim kalau user BELUM join semua grup/channel di atas.
+NOT_JOINED_MESSAGE = (
+    "🔒 Please join all the groups/channels below first, then tap "
+    "\"✅ I've Joined\" to continue."
 )
 
 logging.basicConfig(
@@ -107,6 +131,34 @@ def build_menu_keyboard():
     )
 
 
+async def get_not_joined_channels(bot, user_id: int):
+    """Mengecek satu-satu channel di REQUIRED_CHANNELS, kembalikan yang BELUM di-join."""
+    not_joined = []
+    for channel in REQUIRED_CHANNELS:
+        try:
+            member = await bot.get_chat_member(f"@{channel['username']}", user_id)
+            if member.status in ("left", "kicked"):
+                not_joined.append(channel)
+        except TelegramError as e:
+            # Kalau bot bukan admin di channel tsb, Telegram akan menolak pengecekan.
+            logger.warning(
+                f"Tidak bisa mengecek member di @{channel['username']}: {e}. "
+                "Pastikan bot sudah jadi admin di channel/grup tersebut."
+            )
+            not_joined.append(channel)
+    return not_joined
+
+
+def build_join_keyboard(not_joined_channels):
+    """Membuat keyboard berisi tombol join tiap channel + tombol cek ulang."""
+    buttons = [
+        [InlineKeyboardButton(f"➕ Join {c['name']}", url=f"https://t.me/{c['username']}")]
+        for c in not_joined_channels
+    ]
+    buttons.append([InlineKeyboardButton("✅ I've Joined", callback_data="check_join")])
+    return InlineKeyboardMarkup(buttons)
+
+
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dipanggil setiap ada perubahan status member di grup."""
     result = extract_status_change(update.chat_member)
@@ -133,10 +185,39 @@ async def reply_dm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dipanggil setiap ada orang mengirim pesan pribadi (DM) ke bot."""
     user = update.effective_user
     name = user.full_name or user.first_name or "Sobat"
-    text = DM_REPLY_MESSAGE.format(name=name)
 
+    not_joined = await get_not_joined_channels(context.bot, user.id)
+    if not_joined:
+        await update.message.reply_text(
+            NOT_JOINED_MESSAGE, reply_markup=build_join_keyboard(not_joined)
+        )
+        logger.info(f"{name} ({user.id}) belum join semua grup, diminta join dulu.")
+        return
+
+    text = DM_REPLY_MESSAGE.format(name=name)
     await update.message.reply_text(text, reply_markup=build_menu_keyboard())
     logger.info(f"Membalas DM dari: {name} ({user.id})")
+
+
+async def check_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Dipanggil saat user menekan tombol '✅ I've Joined'."""
+    query = update.callback_query
+    user = query.from_user
+    name = user.full_name or user.first_name or "Sobat"
+
+    await query.answer()  # menghilangkan loading spinner di tombol
+
+    not_joined = await get_not_joined_channels(context.bot, user.id)
+    if not_joined:
+        await query.answer(
+            "❌ You haven't joined all groups/channels yet.", show_alert=True
+        )
+        await query.edit_message_reply_markup(reply_markup=build_join_keyboard(not_joined))
+        return
+
+    text = DM_REPLY_MESSAGE.format(name=name)
+    await query.edit_message_text(text, reply_markup=build_menu_keyboard())
+    logger.info(f"{name} ({user.id}) sudah join semua grup, menu link dikirim.")
 
 
 # ------------------------------------------------------------------
@@ -163,6 +244,9 @@ def main():
     app.add_handler(
         MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, reply_dm)
     )
+
+    # Menangani tombol "✅ I've Joined" untuk cek ulang keanggotaan grup
+    app.add_handler(CallbackQueryHandler(check_join_callback, pattern="^check_join$"))
 
     print("🤖 Bot berjalan... tekan Ctrl+C untuk berhenti.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
