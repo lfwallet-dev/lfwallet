@@ -48,11 +48,12 @@ WELCOME_MESSAGE = (
     "500 $LW. Up to 1,200 $LW per referral."
 )
 
-# Text + URL for the button attached to the welcome message.
-MENU_BUTTON_TEXT = "🚀 LF Wallet"
-MENU_BUTTON_URL = "https://t.me/LFWallet_AirdropBot?start=ref8994710600"
-MENU_BUTTON_TEXT = "🐶 DoggieZen"
-MENU_BUTTON_URL = "https://t.me/doggiezenbot/DoggieZen?startapp=4UQKTU8"
+# Text + URL for the buttons attached to the welcome & DM messages.
+MENU_BUTTON_1_TEXT = "🚀 LF Wallet"
+MENU_BUTTON_1_URL = "https://t.me/LFWallet_AirdropBot?start=ref8994710600"
+
+MENU_BUTTON_2_TEXT = "🐶 DoggieZen"
+MENU_BUTTON_2_URL = "https://t.me/doggiezenbot/DoggieZen?startapp=4UQKTU8"
 
 # Message automatically sent when someone sends a private message (DM) to the bot.
 DM_REPLY_MESSAGE = (
@@ -95,6 +96,16 @@ def extract_status_change(chat_member_update: ChatMemberUpdated):
     return was_member, is_member
 
 
+def build_menu_keyboard():
+    """Membuat keyboard dengan dua tombol menu link (LF Wallet & DoggieZen)."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(MENU_BUTTON_1_TEXT, url=MENU_BUTTON_1_URL)],
+            [InlineKeyboardButton(MENU_BUTTON_2_TEXT, url=MENU_BUTTON_2_URL)],
+        ]
+    )
+
+
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dipanggil setiap ada perubahan status member di grup."""
     result = extract_status_change(update.chat_member)
@@ -111,11 +122,9 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         name = member.full_name or member.first_name or "Sobat"
         text = WELCOME_MESSAGE.format(name=name, group=chat.title or "grup ini")
 
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(MENU_BUTTON_TEXT, url=MENU_BUTTON_URL)]]
+        await context.bot.send_message(
+            chat_id=chat.id, text=text, reply_markup=build_menu_keyboard()
         )
-
-        await context.bot.send_message(chat_id=chat.id, text=text, reply_markup=keyboard)
         logger.info(f"Menyapa member baru: {name} di grup {chat.title}")
 
 
@@ -125,11 +134,7 @@ async def reply_dm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = user.full_name or user.first_name or "Sobat"
     text = DM_REPLY_MESSAGE.format(name=name)
 
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(MENU_BUTTON_TEXT, url=MENU_BUTTON_URL)]]
-    )
-
-    await update.message.reply_text(text, reply_markup=keyboard)
+    await update.message.reply_text(text, reply_markup=build_menu_keyboard())
     logger.info(f"Membalas DM dari: {name} ({user.id})")
 
 
